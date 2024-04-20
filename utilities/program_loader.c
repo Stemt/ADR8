@@ -44,14 +44,10 @@ int main(void){
   mem.data[0x15] = 0x00;
   mem.data[0x16] = 0x00; // start program location
 
-  
-
   while(!core.halt){
-    ADR8_Core_print(&core);
     ADR8_Core_clock(&core);
     ADR8_Memory_clock(&mem);
     ADR8_SerialBus_clock(&serial);
-    usleep(10000);
   }
 
   return 0;

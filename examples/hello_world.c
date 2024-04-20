@@ -57,7 +57,6 @@ int main(void){
     ADR8_Core_clock(&core);
     ADR8_Memory_clock(&mem);
     ADR8_SerialBus_clock(&serial);
-    usleep(10000);
   }
 
   return 0;

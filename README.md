@@ -17,7 +17,23 @@ make
 
 ## Usage
 
-### Setting up the emulator
+### Loading a program using the program loader
+
+This repository provides as simple preconfigured emulator application called the `program_loader`.
+This application makes use of the `ADR8_SerialBus` device to read in raw program data an load it into the emulated memory, for more information see the [Devices]() section.
+
+This serial bus allows the emulator to interface with streams such as from files and stdin and stdout.
+The `program_loader` is configured to read bytes from stdin load these into memory allowing for dynamic loading and execution of programs.
+
+The 'easiest' way as of now to write a program is to write it inside a text file in a hexadecimal representation and then to use the `xxd` utility to convert this hexadecimal to raw bytes.
+Taking the `hello_world.hex` as example, it can be loaded like this.
+```
+xxd -r -p < examples/hello_world.hex | ./build/utilities/program_loader
+```
+Note that this loaded file must begin with a dword indicating how many bytes are to be loaded into memory.
+
+
+### Setting up a custom emulator configuration
 
 The emulator comes in the form a header only library `ADR8.h`.
 
@@ -87,6 +103,19 @@ Word                 | 8-bit binary number
 Half-Word            | 4-bit binary number
 DWord or Double-Word | 16-bit binary number
 
+### Registers
+
+The ADR8 architecture supports multiple registers with different functionalities.
+
+Register | Description
+-------- | ---------------------------------------------------------------------------------
+PC       | Program Counter, points at the next instruction to be executed
+STK      | Stack Pointer, points at the current location in the stack
+A        | Accumulator, results from the ALU are stored here
+B        | Argument Register, used as secondary input for ALU operations and for comparisons
+X        | Index Register for A, allows for quick memory access when properly used
+Y        | Index Register for B, allows for quick memory access when properly used
+
 ### Operand Types
 
 Some instructions take different types of operands, the different types will be indicated using letter combinations.
@@ -103,6 +132,7 @@ Instruction | Hex Code | Description
 ----------- | -------- | -------------------------------------------------------------------------
 NOP         | 00       | Do nothing
 HALT        | 01       | Stop CPU execution
+TRAK        | 02       | Transfer content of A to STK
 TRAB        | 03       | Transfer content of A to B
 TRBA        | 04       | Transfer content of B to A
 TRAX        | 05       | Transfer content of A to X

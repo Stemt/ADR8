@@ -6,10 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <assert.h>
 
 // logging 
+#ifndef ADR8_LOG_LEVEL_ERROR
 #define ADR8_LOG_LEVEL_ERROR 0
 #define ADR8_LOG_LEVEL_DEBUG 1
 
@@ -17,18 +17,18 @@
 #define ADR8_LOG_LEVEL ADR8_LOG_LEVEL_ERROR
 #endif
 
-#ifndef ADR8_LOG_PRINT
-#define ADR8_LOG_PRINT(...) fprintf(stderr,__VA_ARGS__)
+#ifndef ADR8_LOG_PRINTF
+#define ADR8_LOG_PRINTF(...) fprintf(stderr,__VA_ARGS__)
 #endif
 
 #if ADR8_LOG_LEVEL == ADR8_LOG_LEVEL_ERROR
 #define ADR8_DEBUG_LOG(...)
-#define ADR8_ERROR_LOG(...) ADR8_LOG_PRINT("[ERROR]: "__VA_ARGS__)
+#define ADR8_ERROR_LOG(...) ADR8_LOG_PRINTF("[ERROR]: "__VA_ARGS__)
 #elif ADR8_LOG_LEVEL == ADR8_LOG_LEVEL_DEBUG
-#define ADR8_DEBUG_LOG(...) ADR8_LOG_PRINT("[DEBUG]: "__VA_ARGS__)
-#define ADR8_ERROR_LOG(...) ADR8_LOG_PRINT("[ERROR]: "__VA_ARGS__)
+#define ADR8_DEBUG_LOG(...) ADR8_LOG_PRINTF("[DEBUG]: "__VA_ARGS__)
+#define ADR8_ERROR_LOG(...) ADR8_LOG_PRINTF("[ERROR]: "__VA_ARGS__)
 #endif
-
+#endif // ADR8_LOG_LEVEL_ERROR
 
 #define ADR8_IMPLEMENTATION
 
@@ -89,10 +89,10 @@ void ADR8_Memory_init(ADR8_Memory* mem, ADR8_Bus* bus, uint16_t size, uint16_t m
 
 void ADR8_Memory_print(ADR8_Memory* mem, uint16_t n){
   for(uint16_t i = 0; i < n && i < mem->size; ++i){
-    if (i%8 == 0) ADR8_LOG_PRINT("\n%04hX:",i);
-    ADR8_LOG_PRINT(" %02hX", mem->data[i]);
+    if (i%8 == 0) ADR8_LOG_PRINTF("\n%04hX:",i);
+    ADR8_LOG_PRINTF(" %02hX", mem->data[i]);
   }
-  ADR8_LOG_PRINT("\n");
+  ADR8_LOG_PRINTF("\n");
 }
 
 void ADR8_Memory_clock(ADR8_Memory* mem){
@@ -114,6 +114,7 @@ typedef enum{
   ADR8_Op_NOP  = 0x00,
   ADR8_Op_HALT = 0x01,
   
+  ADR8_Op_TRAK = 0x02, // transfer A to STK
   ADR8_Op_TRAB = 0x03, // transfer A to B
   ADR8_Op_TRBA = 0x04, // transfer B to A
   ADR8_Op_TRAX = 0x05, // transfer A to X
@@ -278,7 +279,9 @@ void ADR8_Core_print(ADR8_Core* core){
     "EXEC",
     "FETCH",
   };
-  ADR8_DEBUG_LOG("pc: [%04hX] adr: [%04hX] stk: [%04hX] a: [%04hX] b: [%04hX] x: [%04hX] y: [%04hX] cmd.op: [%02hX] cmd.state: [%02hX] %s\n"
+  (void)cpu_state;
+
+  ADR8_LOG_PRINTF("pc: [%04hX] adr: [%04hX] stk: [%04hX] a: [%04hX] b: [%04hX] x: [%04hX] y: [%04hX] cmd.op: [%02hX] cmd.state: [%02hX] %s\n"
       ,core->reg.pc.full
       ,core->reg.adr.full
       ,core->reg.stk.full
@@ -433,32 +436,26 @@ void ADR8_Core_clock(ADR8_Core* core){
 
     // ALU Ops
     case ADR8_Op_ADD:{
-      uint16_t result = core->reg.b.full + core->reg.a.full;
       core->reg.a.full += core->reg.b.full;
       ADR8_Core_next_instruction(core);
     } break;
     case ADR8_Op_SUB:{
-      uint16_t result = core->reg.b.full + core->reg.a.full;
       core->reg.a.full -= core->reg.b.full;
       ADR8_Core_next_instruction(core);
     } break;
     case ADR8_Op_MUL:{
-      uint16_t result = core->reg.b.full + core->reg.a.full;
       core->reg.a.full *= core->reg.b.full;
       ADR8_Core_next_instruction(core);
     } break;
     case ADR8_Op_DIV:{
-      uint16_t result = core->reg.b.full + core->reg.a.full;
       core->reg.a.full /= core->reg.b.full;
       ADR8_Core_next_instruction(core);
     } break;
     case ADR8_Op_INC:{
-      uint16_t result = core->reg.b.full + core->reg.a.full;
       core->reg.a.full++;
       ADR8_Core_next_instruction(core);
     } break;
     case ADR8_Op_DEC:{
-      uint16_t result = core->reg.b.full + core->reg.a.full;
       core->reg.a.full--;
       ADR8_Core_next_instruction(core);
     } break;

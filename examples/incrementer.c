@@ -40,11 +40,10 @@ int main(void){
 
 
   while(!core.halt){
-    ADR8_Core_print(&core);
     ADR8_Core_clock(&core);
     ADR8_Memory_clock(&mem);
+    ADR8_Core_print(&core);
     ADR8_Memory_print(&mem, 0x30);
-    usleep(50000);    
   }
 
   return 0;
