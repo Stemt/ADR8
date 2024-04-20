@@ -79,12 +79,12 @@ This loop will repeat until the HALT instruction is reached.
 
 Before reading this reference its important to be familiar with the following terminology.
 
-Term | Description
-- | -
-Signed Integer | A whole number which can be negative
-Unsigned Integer | A whole number which cannot be negative
-Word | 8-bit binary number 
-Half-Word | 4-bit binary number
+Term                 | Description
+-------------------- | ---------------------------------------
+Signed Integer       | A whole number which can be negative
+Unsigned Integer     | A whole number which cannot be negative
+Word                 | 8-bit binary number
+Half-Word            | 4-bit binary number
 DWord or Double-Word | 16-bit binary number
 
 ### Operand Types
