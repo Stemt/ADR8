@@ -9,6 +9,27 @@
 #include <unistd.h>
 #include <assert.h>
 
+// logging 
+#define ADR8_LOG_LEVEL_ERROR 0
+#define ADR8_LOG_LEVEL_DEBUG 1
+
+#ifndef ADR8_LOG_LEVEL
+#define ADR8_LOG_LEVEL ADR8_LOG_LEVEL_ERROR
+#endif
+
+#ifndef ADR8_LOG_PRINT
+#define ADR8_LOG_PRINT(...) fprintf(stderr,__VA_ARGS__)
+#endif
+
+#if ADR8_LOG_LEVEL == ADR8_LOG_LEVEL_ERROR
+#define ADR8_DEBUG_LOG(...)
+#define ADR8_ERROR_LOG(...) ADR8_LOG_PRINT("[ERROR]: "__VA_ARGS__)
+#elif ADR8_LOG_LEVEL == ADR8_LOG_LEVEL_DEBUG
+#define ADR8_DEBUG_LOG(...) ADR8_LOG_PRINT("[DEBUG]: "__VA_ARGS__)
+#define ADR8_ERROR_LOG(...) ADR8_LOG_PRINT("[ERROR]: "__VA_ARGS__)
+#endif
+
+
 #define ADR8_IMPLEMENTATION
 
 // ADR8_Bus
@@ -68,10 +89,10 @@ void ADR8_Memory_init(ADR8_Memory* mem, ADR8_Bus* bus, uint16_t size, uint16_t m
 
 void ADR8_Memory_print(ADR8_Memory* mem, uint16_t n){
   for(uint16_t i = 0; i < n && i < mem->size; ++i){
-    if (i%8 == 0) fprintf(stderr,"\n%04hX:",i);
-    fprintf(stderr," %02hX", mem->data[i]);
+    if (i%8 == 0) ADR8_LOG_PRINT("\n%04hX:",i);
+    ADR8_LOG_PRINT(" %02hX", mem->data[i]);
   }
-  fprintf(stderr,"\n");
+  ADR8_LOG_PRINT("\n");
 }
 
 void ADR8_Memory_clock(ADR8_Memory* mem){
@@ -158,12 +179,14 @@ typedef enum{
   ADR8_Op_SUB  = 0x31,
   ADR8_Op_MUL  = 0x32,
   ADR8_Op_DIV  = 0x33,
+  ADR8_Op_INC  = 0x34,
+  ADR8_Op_DEC  = 0x35,
   
   // pointer arithmatic
-  ADR8_Op_INCX = 0x34,
-  ADR8_Op_INCY = 0x35,
-  ADR8_Op_DECX = 0x36,
-  ADR8_Op_DECY = 0x37,
+  ADR8_Op_INCX = 0x36,
+  ADR8_Op_INCY = 0x37,
+  ADR8_Op_DECX = 0x38,
+  ADR8_Op_DECY = 0x39,
 
   // relative control flow
   ADR8_Op_JMPR = 0x40,
@@ -255,7 +278,7 @@ void ADR8_Core_print(ADR8_Core* core){
     "EXEC",
     "FETCH",
   };
-  fprintf(stderr,"pc: [%04hX] adr: [%04hX] stk: [%04hX] a: [%04hX] b: [%04hX] x: [%04hX] y: [%04hX] cmd.op: [%02hX] cmd.state: [%02hX] %s\n"
+  ADR8_DEBUG_LOG("pc: [%04hX] adr: [%04hX] stk: [%04hX] a: [%04hX] b: [%04hX] x: [%04hX] y: [%04hX] cmd.op: [%02hX] cmd.state: [%02hX] %s\n"
       ,core->reg.pc.full
       ,core->reg.adr.full
       ,core->reg.stk.full
@@ -266,6 +289,11 @@ void ADR8_Core_print(ADR8_Core* core){
       ,core->reg.cmd.opcode
       ,core->reg.cmd.state
       ,cpu_state[core->fetch]);
+}
+
+void ADR8_Core_clear_bus(ADR8_Core* core){
+  core->bus->address = 0;
+  core->bus->read = true; // ensures nothing is accidentally written
 }
 
 void ADR8_Core_next_instruction(ADR8_Core* core){
@@ -283,6 +311,7 @@ uint8_t ADR8_Core_get_operand_data(ADR8_Core* core){
 }
 
 void ADR8_Core_clock(ADR8_Core* core){
+  ADR8_Core_clear_bus(core);
   if(core->halt) return;
 
   if(core->fetch){
@@ -383,11 +412,54 @@ void ADR8_Core_clock(ADR8_Core* core){
         } break;
       }
     } break;
+    
+    // pointer store ops
+    case ADR8_Op_SXAL:{
+      ADR8_Bus_write(core->bus, core->reg.x.full, core->reg.a.half.l);
+      ADR8_Core_next_instruction(core);
+    }break;
+    case ADR8_Op_SXAH:{
+      ADR8_Bus_write(core->bus, core->reg.x.full, core->reg.a.half.h);
+      ADR8_Core_next_instruction(core);
+    }break;
+    case ADR8_Op_SYBL:{
+      ADR8_Bus_write(core->bus, core->reg.y.full, core->reg.b.half.l);
+      ADR8_Core_next_instruction(core);
+    }break;
+    case ADR8_Op_SYBH:{
+      ADR8_Bus_write(core->bus, core->reg.y.full, core->reg.b.half.h);
+      ADR8_Core_next_instruction(core);
+    }break;
 
     // ALU Ops
     case ADR8_Op_ADD:{
       uint16_t result = core->reg.b.full + core->reg.a.full;
       core->reg.a.full += core->reg.b.full;
+      ADR8_Core_next_instruction(core);
+    } break;
+    case ADR8_Op_SUB:{
+      uint16_t result = core->reg.b.full + core->reg.a.full;
+      core->reg.a.full -= core->reg.b.full;
+      ADR8_Core_next_instruction(core);
+    } break;
+    case ADR8_Op_MUL:{
+      uint16_t result = core->reg.b.full + core->reg.a.full;
+      core->reg.a.full *= core->reg.b.full;
+      ADR8_Core_next_instruction(core);
+    } break;
+    case ADR8_Op_DIV:{
+      uint16_t result = core->reg.b.full + core->reg.a.full;
+      core->reg.a.full /= core->reg.b.full;
+      ADR8_Core_next_instruction(core);
+    } break;
+    case ADR8_Op_INC:{
+      uint16_t result = core->reg.b.full + core->reg.a.full;
+      core->reg.a.full++;
+      ADR8_Core_next_instruction(core);
+    } break;
+    case ADR8_Op_DEC:{
+      uint16_t result = core->reg.b.full + core->reg.a.full;
+      core->reg.a.full--;
       ADR8_Core_next_instruction(core);
     } break;
 
@@ -397,7 +469,7 @@ void ADR8_Core_clock(ADR8_Core* core){
       ADR8_Core_next_instruction(core);
     } break;
     case ADR8_Op_INCY:{
-      core->reg.x.full++;
+      core->reg.y.full++;
       ADR8_Core_next_instruction(core);
     } break;
     case ADR8_Op_DECX:{
@@ -405,7 +477,7 @@ void ADR8_Core_clock(ADR8_Core* core){
       ADR8_Core_next_instruction(core);
     } break;
     case ADR8_Op_DECY:{
-      core->reg.x.full--;
+      core->reg.y.full--;
       ADR8_Core_next_instruction(core);
     } break;
 
@@ -525,7 +597,7 @@ void ADR8_Core_clock(ADR8_Core* core){
       }
     } break;
     default:{
-      fprintf(stderr,"Emulator ERROR: Unknown instruction [%02X]\n",core->reg.cmd.opcode);
+      ADR8_ERROR_LOG("Unknown/unimplemented instruction [%02X]\n",core->reg.cmd.opcode);
       core->halt = true;
     }break;
   }

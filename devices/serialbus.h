@@ -32,6 +32,7 @@ void ADR8_SerialBus_clock(ADR8_SerialBus* serial){
         serial->bus->data = 0;
       }else{
         serial->bus->data = c;
+        ADR8_DEBUG_LOG("serial: read [%02X]\n",c);
       }
     }else{
       fputc(serial->bus->data, serial->out_fp);
