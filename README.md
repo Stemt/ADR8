@@ -89,6 +89,21 @@ while(!core.halt){
 ```
 This loop will repeat until the HALT instruction is reached.
 
+## Devices
+
+The ADR8 doesn't just have to be a virtual machine flipping some bits in memory, using devices can allow programs to interact with things outside of the emulator or otherwise extend its capability.
+
+### Serial Bus
+
+The serial bus is a very simple device that can allow a program to read and write from external stream such as stdin and stdout.
+It is initialized by passing the streams (`FILE*`), the bus and the mounting address on the bus.
+```
+ADR8_SerialBus serial = {0};
+ADR8_SerialBus_init(&serial,stdin,stdout, &bus, 0x1000);
+```
+
+Now when the CPU writes to the bus at 0x1000 it will actually write to stdout and when reading it will read from stdin. 
+
 ## ISA Reference
 
 ### Terminology
