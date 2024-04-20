@@ -5,14 +5,21 @@
 int main(void){
 
   ADR8_Bus bus = {0};
+
+  // init memory of 256 bytes and mount at address 0x0
   ADR8_Memory mem = {0};
   ADR8_Memory_init(&mem, &bus, 0x100, 0x0);
+  
+  // init serial bus device and map at address 0x100
   ADR8_SerialBus serial = {0};
   ADR8_SerialBus_init(&serial,NULL,stdout, &bus, 0x100);
+  
+  // init CPU
   ADR8_Core core = {0};
   ADR8_Core_init(&core, &bus);
 
-  mem.data[0x00] = ADR8_Op_JMPA;
+  // set program and data in memory
+  mem.data[0x00] = ADR8_Op_JMPA; // jump over data section
   mem.data[0x01] = 0x10;
   mem.data[0x02] = 0x00;
   mem.data[0x03] = 'h';
@@ -39,7 +46,7 @@ int main(void){
   mem.data[0x18] = ADR8_Op_JEQA; // if zero exit loop
   mem.data[0x19] = 0x1E;
   mem.data[0x1A] = 0x00;
-  mem.data[0x1B] = ADR8_Op_INCX;
+  mem.data[0x1B] = ADR8_Op_INCX; // increment pointer
   mem.data[0x1C] = ADR8_Op_JMPA; // repeat loop
   mem.data[0x1D] = 0x13;
   mem.data[0x1E] = 0x00;
@@ -47,10 +54,8 @@ int main(void){
 
 
   while(!core.halt){
-    ADR8_Core_print(&core);
     ADR8_Core_clock(&core);
     ADR8_Memory_clock(&mem);
-    ADR8_Memory_print(&mem, 0x30);
     ADR8_SerialBus_clock(&serial);
     usleep(10000);
   }
