@@ -1,0 +1,26 @@
+// this is the hello world program but in hex form
+// so that it can be loaded by the program loader
+
+3000    // program length (little endian)
+44 2600 // jump over string section
+68      // "hello wolrd!\n\0"
+65
+6c
+6c
+6f
+20
+77
+6f
+72
+6c
+64
+21
+0a
+00
+0c 1900 // set X ptr to string beginning
+14      // load value at x into lower A
+20 0010 // write lower A to serial bus
+45 3500 // if A == B(0) exit loop
+36      // increment X ptr
+44 2900 // loop
+01      // halt
