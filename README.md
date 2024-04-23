@@ -20,7 +20,7 @@ make
 ### Loading a program using the program loader
 
 This repository provides as simple preconfigured emulator application called the `program_loader`.
-This application makes use of the `ADR8_SerialBus` device to read in raw program data an load it into the emulated memory, for more information see the [Devices]() section.
+This application makes use of the `ADR8_SerialBus` device to read in raw program data an load it into the emulated memory, for more information see the Devices section.
 
 This serial bus allows the emulator to interface with streams such as from files and stdin and stdout.
 The `program_loader` is configured to read bytes from stdin load these into memory allowing for dynamic loading and execution of programs.
@@ -45,14 +45,14 @@ Important to note is that only one source file in your application can define th
 ```
 The emulator consists of three main parts: the CPU core, the memory and the bus.
 The memory is where the data and instructions are stored, it is connected to the CPU core via the bus.
-The core is the active part of the emulator, it can use the bus to fetch data and instruction from the memory to run programs.
+The core is the active part of the emulator, it can use the bus to fetch data and instructions from the memory to run programs.
 
 The bus is best zero initialized as follows and doesn't require any further initialization.
 ```
 ADR8_Bus bus = {0};
 ```
 
-This can the be used to initialize the memory which also requires a size and a mounting address.
+This can then be used to initialize the memory which also requires a size and a mounting address.
 The mounting address determines at what bus address the memory starts.
 This example define 0x100 (== 256) bytes and is mounted at address 0.
 ```

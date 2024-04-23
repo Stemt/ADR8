@@ -99,9 +99,11 @@ void ADR8_Memory_clock(ADR8_Memory* mem){
   uint16_t mem_address = mem->bus->address - mem->mount_address;
   if(mem_address < mem->size){
     if(mem->bus->read){
+      ADR8_DEBUG_LOG(" READ  %04hX: %02hX\n",mem_address,mem->data[mem_address]);
       mem->bus->data = mem->data[mem_address];
     }else{
       mem->data[mem_address] = mem->bus->data;
+      ADR8_DEBUG_LOG(" WRITE %04hX: %02hX\n",mem_address,mem->data[mem_address]);
     }
   }
 }
@@ -109,7 +111,7 @@ void ADR8_Memory_clock(ADR8_Memory* mem){
 
 // ADR8_Core
 
-typedef enum{
+typedef enum{ // ADR8_OpCode
   // Misc ops
   ADR8_Op_NOP  = 0x00,
   ADR8_Op_HALT = 0x01,
@@ -225,7 +227,6 @@ typedef enum{
   ADR8_Op_POB  = 0x6B,
   ADR8_Op_POX  = 0x6C,
   ADR8_Op_POY  = 0x6D,
-
   
 }ADR8_OpCode;
 
@@ -333,6 +334,47 @@ void ADR8_Core_clock(ADR8_Core* core){
     case ADR8_Op_NOP: ADR8_Core_next_instruction(core); break;
     case ADR8_Op_HALT: core->halt = true; break;
     
+    // subroutines
+    case ADR8_Op_JSR:{
+      switch(core->reg.cmd.state){
+        case 0:{
+          ADR8_Core_fetch_next_operand(core);
+        }break;
+        case 1:{
+          core->reg.adr.half.l = ADR8_Core_get_operand_data(core);
+          ADR8_Core_fetch_next_operand(core);
+        }break;
+        case 2:{
+          core->reg.adr.half.h = ADR8_Core_get_operand_data(core);
+          ADR8_Bus_write(core->bus, core->reg.stk.full, core->reg.pc.half.h);
+          core->reg.stk.full--;
+        }break;
+        case 3:{
+          ADR8_Bus_write(core->bus, core->reg.stk.full, core->reg.pc.half.l);
+          core->reg.stk.full--;
+          core->reg.pc.full = core->reg.adr.full;
+          ADR8_Core_next_instruction(core);
+        }break;
+      }
+    }break;
+    case ADR8_Op_RSR:{
+      switch(core->reg.cmd.state){
+        case 0:{
+          core->reg.stk.full++;
+          ADR8_Bus_read(core->bus, core->reg.stk.full);
+        }break;
+        case 1:{
+          core->reg.adr.half.l = ADR8_Bus_get_data(core->bus);
+          core->reg.stk.full++;
+          ADR8_Bus_read(core->bus, core->reg.stk.full);
+        }break;
+        case 2:{
+          core->reg.adr.half.h = ADR8_Bus_get_data(core->bus);
+          core->reg.pc.full = core->reg.adr.full;
+          ADR8_Core_next_instruction(core);
+        }break;
+      }
+    }break;
     // Load ops
     case ADR8_Op_LDAL:
     case ADR8_Op_LDAH:
