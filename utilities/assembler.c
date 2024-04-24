@@ -126,11 +126,11 @@ bool Tokenizer_is_digit(char c){
 }
 
 bool Tokenizer_is_hexdigit(char c){
-  return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F';
+  return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
 bool Tokenizer_is_letter(char c){
-  return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z';
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
 void Tokenizer_consume_until_ws(FILE* stream, Token* token){
@@ -175,12 +175,13 @@ TokenType Tokenizer_identify_tokentype(char c){
 char Tokenizer_resolve_escape_code(char c, size_t line){
   switch (c) {
     case '\\': return '\\';
-    case '\n': return '\n';
-    case '\0': return '\0';
-    case '\r': return '\r';
-    case '\t': return '\t';
+    case 'n': return '\n';
+    case '0': return '\0';
+    case 'r': return '\r';
+    case 't': return '\t';
     default:
       ADR8_ERROR_LOG("unsupported escape code '\\%c' on line %lu\n",c,line);
+      exit(1);
   }
 }
 void Tokenizer_consume(FILE* stream, Token* token, size_t line){
@@ -302,83 +303,102 @@ typedef struct{
   char name[512];
   uint16_t loc;
   size_t line;
+  char* file;
 } Label;
 
 DA_def(Label);
-
 DA_def(uint8_t);
+typedef char* char_ptr;
+DA_def(char_ptr);
 
-void Assembler_assemble(FILE* instream, FILE* outstream){
-  Token token;
-  size_t line = 1;
-  Tokenizer_consume(instream, &token,line);
-
+void Assembler_assemble(DA_char_ptr* input_files, char* outfile){
   DA_uint8_t program = {0};
   DA_Label label_definitions = {0};
   DA_Label label_uses = {0};
+  FILE* outstream = fopen(outfile,"w");
+  if(!outstream){
+    ADR8_ERROR_LOG("unable to open output file '%s': %s\n",outfile,strerror(errno));
+    exit(1);
+  }
 
-  while(token.len > 0){
-    ADR8_DEBUG_LOG("assembling token: '%s'\n",token.buffer);
-    switch(token.type){
-      case TokenType_NEWLINE:
-        line++;
-        break;
-      case TokenType_COMMENT:
-      case TokenType_WHITESPACE:
-        break;
-      case TokenType_INSTRUCTION:{
-        int instruction = Assembler_encode_instruction(&token);
-        if(instruction < 0){
-          ADR8_DEBUG_LOG("'%s' not instruction, assuming label\n", token.buffer);
+  // TODO load input files and update error logs
+  Token token;
+
+  DA_foreach(input_files, char**, input_file){
+    FILE* instream = fopen(*input_file,"r");
+    size_t line = 1;
+    Tokenizer_consume(instream, &token,line);
+    ADR8_DEBUG_LOG("assembling file '%s'\n",*input_file);
+
+    while(token.len > 0){
+      ADR8_DEBUG_LOG("assembling token: '%s'\n",token.buffer);
+      switch(token.type){
+        case TokenType_NEWLINE:
+          line++;
+          break;
+        case TokenType_COMMENT:
+        case TokenType_WHITESPACE:
+          break;
+        case TokenType_INSTRUCTION:{
+          int instruction = Assembler_encode_instruction(&token);
+          if(instruction < 0){
+            ADR8_DEBUG_LOG("'%s' not instruction, assuming label\n", token.buffer);
+            Label label;
+            label.loc = DA_len(&program);
+            label.line = line;
+            strcpy(label.name,token.buffer);
+            DA_append(&label_uses, label);
+            DA_append(&program,0x00); // add placeholder into program
+            DA_append(&program,0x00);
+          }else{
+            ADR8_DEBUG_LOG("'%s' decoded instruction: 0x%02hX\n", token.buffer,instruction);
+            DA_append(&program,instruction);
+          }
+        }break;
+        case TokenType_LABEL:{
           Label label;
           label.loc = DA_len(&program);
-          label.line = line;
+          label.file = *input_file;
+          token.buffer[token.len-1] = '\0';
           strcpy(label.name,token.buffer);
-          DA_append(&label_uses, label);
-          DA_append(&program,0x00); // add placeholder into program
-          DA_append(&program,0x00);
-        }else{
-          ADR8_DEBUG_LOG("'%s' decoded instruction: 0x%02hX\n", token.buffer,instruction);
-          DA_append(&program,instruction);
-        }
-      }break;
-      case TokenType_LABEL:{
-        Label label;
-        label.loc = DA_len(&program);
-        token.buffer[token.len-1] = '\0';
-        strcpy(label.name,token.buffer);
-        DA_append(&label_definitions, label);
-      }break;
-      case TokenType_DECNUMBER:{
-        int8_t n = atol(token.buffer);
-        DA_append(&program,n);
-      }break;
-      case TokenType_HEXNUMBER:{
-        if(token.len == 4){
-          uint8_t n = strtoul(token.buffer, NULL, 16);
+          DA_append(&label_definitions, label);
+        }break;
+        case TokenType_DECNUMBER:{
+          int8_t n = atol(token.buffer);
           DA_append(&program,n);
-        }else if(token.len == 6){
-          uint16_t n = strtoul(token.buffer, NULL, 16);
-          uint8_t h = (n&0xFF);
-          DA_append(&program, h);
-          uint8_t l = (n&0xFF00)>>8;
-          DA_append(&program, l);
-        }else{
-          ADR8_ERROR_LOG("Unclear or unsupported hex number '%s', hex number must be explicitly 8-bit (e.g. 0xFF) or explicitly 16-bit (e.g. 0xFFFF) on line %lu\n",token.buffer,line);
+        }break;
+        case TokenType_HEXNUMBER:{
+          if(token.len == 4){
+            uint8_t n = strtoul(token.buffer, NULL, 16);
+            DA_append(&program,n);
+          }else if(token.len == 6){
+            uint16_t n = strtoul(token.buffer, NULL, 16);
+            uint8_t h = (n&0xFF);
+            DA_append(&program, h);
+            uint8_t l = (n&0xFF00)>>8;
+            DA_append(&program, l);
+          }else{
+            ADR8_ERROR_LOG("%s:%lu: Unclear or unsupported hex number '%s', \n"
+                "hex number must be explicitly 8-bit (e.g. 0xFF) or \n"
+                "explicitly 16-bit (e.g. 0xFFFF)\n",*input_file,line,token.buffer);
+            exit(1);
+          }
+        }break;
+        case TokenType_STRING:{
+          for(size_t i = 1; i < token.len-1; ++i){
+            ADR8_DEBUG_LOG("string append '%c'\n");
+            DA_append(&program, token.buffer[i]);
+          }
+          DA_append(&program, '\0');
+        }break;
+        case TokenType_UNKNOWN:{
+          ADR8_ERROR_LOG("%s:%lu: invalid token: '%s'\n", *input_file, line, token.buffer);
           exit(1);
-        }
-      }break;
-      case TokenType_STRING:{
-        for(size_t i = 1; i < token.len-1; ++i){
-          DA_append(&program, token.buffer[i]);
-        }
-      }break;
-      case TokenType_UNKNOWN:{
-        ADR8_ERROR_LOG("invalid token: '%s' on line %lu\n", token.buffer,line);
-        exit(1);
-      }break;
+        }break;
+      }
+      Tokenizer_consume(instream, &token, line);
     }
-    Tokenizer_consume(instream, &token, line);
+    fclose(instream);
   }
 
   DA_foreach(&label_uses, Label*, label_use){
@@ -392,7 +412,7 @@ void Assembler_assemble(FILE* instream, FILE* outstream){
       }
     }
     if(!resolved){
-      ADR8_ERROR_LOG("unable to resolve symbol '%s' on line %lu\n", label_use->name, label_use->line);
+      ADR8_ERROR_LOG("%s:%lu: unable to resolve symbol '%s'\n", label_use->file, label_use->line, label_use->name);
       exit(1);
     }
   }
@@ -411,24 +431,24 @@ void Assembler_assemble(FILE* instream, FILE* outstream){
 
 
 int main(int argc, char** argv){
-  if(argc!=3){
-    fprintf(stderr, "Usage: asm [INFILE] [OUTFILE]\n");
+  DA_char_ptr input_files = {0};
+  char* output_file = NULL;
+  for(int i = 1; i < argc; ++i){
+    if(argv[i][0] == '-'){
+      switch (argv[i][1]) {
+        case 'o': output_file = argv[++i];
+      }
+    }else{
+      DA_append(&input_files, argv[i]);
+    }
+  }
+  
+  if(!output_file){
+    ADR8_ERROR_LOG("Usage: asm -o [OUTFILE] [INFILE1 INFILE2 ... ]\n");
     return 1;
   }
+
   InstructionTable_init();
-  ADR8_DEBUG_LOG("opening file: '%s'\n",argv[1]);
-  FILE* infile = fopen(argv[1], "r");
-  if(!infile){
-    ADR8_ERROR_LOG("failed opening file '%s': %s\n",argv[1],strerror(errno));
-    exit(1);
-  }
-  ADR8_DEBUG_LOG("opening file: '%s'\n",argv[2]);
-  FILE* outfile = fopen(argv[2], "w");
-  if(!outfile){
-    ADR8_ERROR_LOG("failed opening file '%s': %s\n",argv[2],strerror(errno));
-    exit(1);
-  }
-  Assembler_assemble(infile, outfile);
-  fclose(outfile);
-  fclose(infile);
+  
+  Assembler_assemble(&input_files, output_file);
 }
