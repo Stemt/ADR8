@@ -423,8 +423,9 @@ void Assembler_assemble(DA_char_ptr* input_files, char* outfile){
   ADR8_DEBUG_LOG("program output:\n");
   uint32_t i = 0;
   DA_foreach(&program, uint8_t*, byte){
-    ADR8_DEBUG_LOG("  %04X: %02hX\n",i++,*byte);
+    ADR8_DEBUG_LOG("  %04X: %02hX\n",i,*byte);
     fputc(*byte, outstream);
+    i++;
   }
   
 }
@@ -436,7 +437,9 @@ int main(int argc, char** argv){
   for(int i = 1; i < argc; ++i){
     if(argv[i][0] == '-'){
       switch (argv[i][1]) {
-        case 'o': output_file = argv[++i];
+        case 'o': 
+          output_file = argv[++i];
+          break;
       }
     }else{
       DA_append(&input_files, argv[i]);

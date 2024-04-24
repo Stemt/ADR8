@@ -99,11 +99,11 @@ void ADR8_Memory_clock(ADR8_Memory* mem){
   uint16_t mem_address = mem->bus->address - mem->mount_address;
   if(mem_address < mem->size){
     if(mem->bus->read){
-      ADR8_DEBUG_LOG(" READ  %04hX: %02hX\n",mem_address,mem->data[mem_address]);
+      ADR8_DEBUG_LOG("MEM READ  %04hX: %02hX\n",mem_address,mem->data[mem_address]);
       mem->bus->data = mem->data[mem_address];
     }else{
       mem->data[mem_address] = mem->bus->data;
-      ADR8_DEBUG_LOG(" WRITE %04hX: %02hX\n",mem_address,mem->data[mem_address]);
+      ADR8_DEBUG_LOG("MEM WRITE %04hX: %02hX\n",mem_address,mem->data[mem_address]);
     }
   }
 }
