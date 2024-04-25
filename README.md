@@ -4,6 +4,25 @@
 This is an emulator for a fictional 8-bit processor called the ADR8.
 The ADR8 ISA is a CISC architecture inspired by the 6502 processor.
 
+## Table of Contents
+
+- [ADR8 Emulator](#adr8-emulator)
+   * [Compilation](#compilation)
+   * [Usage](#usage)
+      + [Writing a program using the assembler](#writing-a-program-using-the-assembler)
+      + [Assembling your program](#assembling-your-program)
+      + [Loading a program using the program loader](#loading-a-program-using-the-program-loader)
+      + [Setting up a custom emulator configuration](#setting-up-a-custom-emulator-configuration)
+      + [Writing your program in memory](#writing-your-program-in-memory)
+      + [Running your program](#running-your-program)
+   * [Devices](#devices)
+      + [Serial Bus](#serial-bus)
+   * [ISA Reference](#isa-reference)
+      + [Terminology](#terminology)
+      + [Registers](#registers)
+      + [Operand Types](#operand-types)
+      + [Instruction Overview](#instruction-overview)
+
 ## Compilation
 
 Compiling the included examples and programs requries the following software:
