@@ -25,7 +25,7 @@ build/examples:
 example_programs: build/examples utility_programs
 	$(CC) $(CFLAGS) $(LOG_LEVEL_DEF) ./examples/incrementer.c -o ./build/examples/incrementer
 	$(CC) $(CFLAGS) $(LOG_LEVEL_DEF) ./examples/hello_world.c -o ./build/examples/hello_world
-	$(ADR8_ASM) ./utilities/program_loader.asm ./examples/hello_world.asm -o ./build/examples/hello_world.bin
+	$(ADR8_ASM) ./examples/hello_world.asm -o ./build/examples/hello_world.bin -b
 
 clean:
 	rm -rf ./build

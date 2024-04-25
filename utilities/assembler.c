@@ -158,7 +158,7 @@ void Tokenizer_consume_until_nl(FILE* stream, Token* token){
 TokenType Tokenizer_identify_tokentype(char c){
   if(Tokenizer_is_ws(c)){
     return TokenType_WHITESPACE;
-  }else if(Tokenizer_is_digit(c)){
+  }else if(Tokenizer_is_digit(c) || c == '-'){
     return TokenType_DECNUMBER;
   }else if(Tokenizer_is_letter(c)){
     return TokenType_INSTRUCTION;
@@ -226,7 +226,10 @@ void Tokenizer_consume(FILE* stream, Token* token, size_t line){
         if(Tokenizer_is_digit(c)){
           Token_append_char(token, c);
           c = fgetc(stream);
-        }else if(c == 'x' && token->len == 1){
+        }else if(c == '-' && token->len == 0){
+          Token_append_char(token, c);
+          c = fgetc(stream);
+        }else if(token->buffer[0] != '-' && c == 'x' && token->len == 1){
           token->type = TokenType_HEXNUMBER;
           Token_append_char(token,c);
           c = fgetc(stream);
@@ -311,6 +314,8 @@ DA_def(uint8_t);
 typedef char* char_ptr;
 DA_def(char_ptr);
 
+char* BOOTSTRAPPER_PATH = "utilities/bootstrapper.asm";
+
 void Assembler_assemble(DA_char_ptr* input_files, char* outfile){
   DA_uint8_t program = {0};
   DA_Label label_definitions = {0};
@@ -326,6 +331,10 @@ void Assembler_assemble(DA_char_ptr* input_files, char* outfile){
 
   DA_foreach(input_files, char**, input_file){
     FILE* instream = fopen(*input_file,"r");
+    if(!instream){
+      ADR8_ERROR_LOG(" couldn't open file '%s'\n",*input_file);
+      exit(1);
+    }
     size_t line = 1;
     Tokenizer_consume(instream, &token,line);
     ADR8_DEBUG_LOG("assembling file '%s'\n",*input_file);
@@ -364,7 +373,7 @@ void Assembler_assemble(DA_char_ptr* input_files, char* outfile){
           DA_append(&label_definitions, label);
         }break;
         case TokenType_DECNUMBER:{
-          int8_t n = atol(token.buffer);
+          int8_t n = atoi(token.buffer);
           DA_append(&program,n);
         }break;
         case TokenType_HEXNUMBER:{
@@ -417,9 +426,12 @@ void Assembler_assemble(DA_char_ptr* input_files, char* outfile){
     }
   }
 
-  ADR8_DEBUG_LOG("size: %lu [%08lX]\n",DA_len(&program), DA_len(&program));
-  fputc(DA_len(&program)&0xFF,outstream);
-  fputc((DA_len(&program)&0xFF00)>>8,outstream);
+  // if assembled for bootstrapper
+  if(strcmp(DA_at(input_files,0),BOOTSTRAPPER_PATH) == 0){
+    ADR8_DEBUG_LOG("size: %lu [%08lX]\n",DA_len(&program), DA_len(&program));
+    fputc(DA_len(&program)&0xFF,outstream);
+    fputc((DA_len(&program)&0xFF00)>>8,outstream);
+  }
   ADR8_DEBUG_LOG("program output:\n");
   uint32_t i = 0;
   DA_foreach(&program, uint8_t*, byte){
@@ -438,7 +450,24 @@ int main(int argc, char** argv){
     if(argv[i][0] == '-'){
       switch (argv[i][1]) {
         case 'o': 
+          ADR8_DEBUG_LOG("setting outfile to `%s`\n",argv[i]);
           output_file = argv[++i];
+          break;
+        case 'b':
+          ADR8_DEBUG_LOG("input files before\n");
+          DA_foreach(&input_files, char**, input_file){
+            ADR8_DEBUG_LOG("'%s'\n",*input_file);
+          }
+          FILE* file = fopen(BOOTSTRAPPER_PATH, "r");
+          if(!file){
+            ADR8_ERROR_LOG(" couldn't find bootstrapper, please make sure the utilities folder is in PATH or in your current directory");
+            return 1;
+          }
+          DA_insert(&input_files, BOOTSTRAPPER_PATH, 0);
+          ADR8_DEBUG_LOG("input files after\n");
+          DA_foreach(&input_files, char**, input_file){
+            ADR8_DEBUG_LOG("'%s'\n",*input_file);
+          }
           break;
       }
     }else{

@@ -1,6 +1,6 @@
 // when loading using the program loader this part is required to make sure
 // that the program loader stays intact while overwriting itself
-// !! PROGRAM LOADER DO NOT CHANGE !!
+// !! BOOTSTRAPPER DO NOT CHANGE !!
 ENTRY:
   LDAL 0x1000
   LDAH 0x1000
@@ -14,7 +14,6 @@ LOAD_PROGRAM:
   SETB 0x0000
   JGTA LOAD_PROGRAM
   JMPA PROGRAM_ENTRY
-// !! PROGRAM LOADER DO NOT CHANGE !!
+// !! BOOTSTRAPPER DO NOT CHANGE !!
 
-PROGRAM_ENTRY:
-  // write program here
+PROGRAM_ENTRY: 0x00 // Program will be written from here

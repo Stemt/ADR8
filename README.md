@@ -17,21 +17,97 @@ make
 
 ## Usage
 
+### Writing a program using the assembler
+
+This repository provides a rudimentary assembler program to create ADR8 binaries using a human readable representation of ADR8 instructions plus some extra features.
+
+The assembly language is just defining the instructions as listed int the [ISA Reference](#Instruction-Overview).
+
+For example to set a value int register A the `SETA xxxx` instruction can be used, where `xxxx` can be replaced with the value you wnat to set.
+
+Note that hexadecimal notation is required as the assembler will always interpret a decimal number as a signed word (a value between -128 and 127).
+```
+0x01    // unsigned word with value of 1
+0x0100  // unsigned double word with value 1
+1       // signed word with value of 1
+0x0A    // unsigned word with value of 10
+0x0A00  // unsigned double word with value of 10
+10      // signed word with value of 10
+```
+
+So to set A properly the following should be used.
+```
+SETA 0x0100 // set a value of 1 into A
+SETA 0x0A00 // set value of 10 into register A (which is A in hexadecimal)
+```
+
+Because this assembler is very dumb, if only 1 word is provided to `SETA` where it expected two it will use the next word in the program which is usually not intended behaviour.
+```
+SETA 10     // Because SETA here is only provided with 1 word it will grab the value of STA, which is not desireable in this case
+STA 0x1000
+```
+
+This dumbness also allows for funny stuff like this.
+```
+SETA SETA 0 // this, like earlier examples, sets a value of 10 into memory but only because the instruction SETA happens to be equivalent to 0x0A (i.e. dont do this if you intend your code to be readable)
+```
+
+One of the actually useful features of the assembler is labels.
+Labels can be used to, as the name implies, label a place in memory.
+Imagine for example you have a variable at memory location 0x0022 you wanted to load into register A.
+Then you'd normally do something like this:
+```
+1 // signed word at 0x0022
+LDAL 0x0022
+```
+
+Now a label would allow you to give that address a name and use it to refer to that address like so:
+```
+VARIABLE: 1
+LDAL VARIABLE
+```
+
+But it doesn't just have to be for variables, its also useful for loops.
+```
+LOOP: // loop that increments a forever!
+    INCA
+    JMPA LOOP: // note that only absolute jumps can use labels (dumb assembler)
+```
+
+Finally to use text in your programs the assembler supports string literals, which is just a sequence of text that will be written to memory.
+```
+STRING: "this is a string!"
+```
+
+For convenience the assemblier puts a word with the value of zero at the end of the string which can be used to check where the string ends.
+These are usually referred to as null terminated strings.
+
+### Assembling your program
+
+Once you have completed writing your file, save it with preferably an opriate file extension like `.asm` and pass it to the assembler and specify your output file using the `-o` option like so.
+```
+./build/utilities/assembler path/to/your/program.asm -o output.bin
+```
+
 ### Loading a program using the program loader
 
-This repository provides as simple preconfigured emulator application called the `program_loader`.
-This application makes use of the `ADR8_SerialBus` device to read in raw program data an load it into the emulated memory, for more information see the Devices section.
+If you want to actuallly run the program inside the emulator you can use the preconfigured program_loader emulator for this purpose.
+This configuration comes with a preloaded program, the bootstrapper, that uses a `SerialBus` to load your program from stdin, for more info on the serial bus see the [Devices](#Devices) section.
 
-This serial bus allows the emulator to interface with streams such as from files and stdin and stdout.
-The `program_loader` is configured to read bytes from stdin load these into memory allowing for dynamic loading and execution of programs.
+There's one problem with this aproach, this bootstrapper is, like the assembler, very dumb.
+The bootstrapper in its valiant effort to load your program into memory will overwrite and kill itself before achieving its goal.
+To help it along (and prevent it from killing itself) make sure to include the bootstrappers code at the beginning of your program.
+That way the bootstrapper still overwrites itself but does so with its own code so it stays intact.
 
-The 'easiest' way as of now to write a program is to write it inside a text file in a hexadecimal representation and then to use the `xxd` utility to convert this hexadecimal to raw bytes.
-Taking the `hello_world.hex` as example, it can be loaded like this.
+To do this simply add the `-b` option to the assembler like so.
 ```
-xxd -r -p < examples/hello_world.hex | ./build/utilities/program_loader
+./build/utilities/assembler -b path/to/your/program.asm -o output.bin
 ```
-Note that this loaded file must begin with a dword indicating how many bytes are to be loaded into memory.
 
+Now you can run your binary by streaming the binary file to the stdin of the program_loader configuration and watch it go!
+```
+./build/utilities/program_loader < output.bin
+```
 
 ### Setting up a custom emulator configuration
 
