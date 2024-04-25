@@ -57,7 +57,7 @@ Note that hexadecimal notation is required as the assembler will always interpre
 So to set A properly the following should be used.
 ```
 SETA 0x0100 // set a value of 1 into A
-SETA 0x0A00 // set value of 10 into register A (which is A in hexadecimal)
+SETA 0x0A00 // set value of 10 into register A (which is 10 in hexadecimal)
 ```
 
 Because this assembler is very dumb, if only 1 word is provided to `SETA` where it expected two it will use the next word in the program which is usually not intended behaviour.
